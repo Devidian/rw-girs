@@ -51,3 +51,42 @@ yarn start
 with two simulated Global Intercom clients, channel joins, broadcast relay,
 custom channel persistence, restart recovery, and a check that chat text is not
 persisted.
+
+## Docker
+
+The published DockerHub image is:
+
+```sh
+${DOCKER_USERNAME}/rw-girs
+```
+
+Pull and run the current `main` build:
+
+```sh
+docker pull ${DOCKER_USERNAME}/rw-girs:latest
+docker run --rm -p 47015:47015 \
+  -v rw-girs-data:/app/data \
+  ${DOCKER_USERNAME}/rw-girs:latest
+```
+
+Versioned releases are also available after Git tags are published. For
+`v0.1.0`, the workflow publishes both:
+
+```sh
+${DOCKER_USERNAME}/rw-girs:v0.1.0
+${DOCKER_USERNAME}/rw-girs:0.1.0
+```
+
+The container exposes port `47015` and starts the relay with
+`node dist/main.js`. Runtime configuration is still controlled through the
+environment variables listed above.
+
+## CI and Release
+
+GitHub Actions validates pull requests with dependency installation, TypeScript
+build, contract smoke test, and a Docker image build without DockerHub push.
+
+Pushes to `main` publish only `${DOCKER_USERNAME}/rw-girs:latest`. Git tags that
+match `v*` publish versioned DockerHub tags only, for example `v0.1.0` and
+`0.1.0`; tag builds do not update `latest`. The tag workflow also creates a
+GitHub Release with generated release notes and the DockerHub image tags.
