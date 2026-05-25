@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "savedAt": "2026-05-25T00:44:38.652Z",
+  "players": [],
+  "channels": [
+    {
+      "_id": "global",
+      "description": "default channel",
+      "secure": false,
+      "password": null,
+      "ownerId": null
+    },
+    {
+      "_id": "global-dev",
+      "description": "default channel",
+      "secure": false,
+      "password": null,
+      "ownerId": null
+    },
+    {
+      "_id": "global-de",
+      "description": "default channel",
+      "secure": false,
+      "password": null,
+      "ownerId": null
+    },
+    {
+      "_id": "global-en",
+      "description": "default channel",
+      "secure": false,
+      "password": null,
+      "ownerId": null
+    },
+    {
+      "_id": "global-ru",
+      "description": "default channel",
+      "secure": false,
+      "password": null,
+      "ownerId": null
+    },
+    {
+      "_id": "global-fr",
+      "description": "default channel",
+      "secure": false,
+      "password": null,
+      "ownerId": null
+    }
+  ]
+}

@@ -1,0 +1,91 @@
+[meta]
+repository = "rw-girs"
+repository_type = "typescript-websocket-relay"
+standalone = true
+root_orchestration_optional = true
+
+[models]
+planner = "gpt-5.2"
+architecture_review = "gpt-5.5"
+api_guardian = "gpt-5.4"
+implementer = "gpt-5.3-codex"
+reviewer = "gpt-5.4"
+governance_review = "gpt-5.2"
+test_runner = "gpt-5.4-mini"
+release_guardian = "gpt-5.4"
+migration_review = "gpt-5.4"
+
+[agents.planner]
+task_classes = ["feature", "bugfix", "migration", "release", "refactor", "infrastructure"]
+context = ["AGENTS.md", "PLANS.md", "package.json", "docs/active/*", "docs/roadmaps/*"]
+
+[agents.architecture-review]
+task_classes = ["feature", "refactor", "infrastructure", "migration"]
+context = ["AGENTS.md", "package.json", "src/**", "docs/policies/*"]
+must_detect = ["WebSocket contract drift", "plugin boundary violations", "unnecessary dependencies", "relay/plugin ownership drift"]
+
+[agents.api-guardian]
+task_classes = ["feature", "bugfix", "migration"]
+context = ["src/**", "docs/policies/*", ".codex/skills/repository-skills.md"]
+
+[agents.implementer]
+task_classes = ["feature", "bugfix", "refactor", "infrastructure"]
+context = ["AGENTS.md", "package.json", "src/**", "docs/active/*"]
+
+[agents.reviewer]
+task_classes = ["feature", "bugfix", "refactor", "migration", "infrastructure"]
+context = ["AGENTS.md", "package.json", "src/**", "docs/policies/*"]
+
+[agents.governance-review]
+task_classes = ["infrastructure", "release", "refactor"]
+context = ["AGENTS.md", "PLANS.md", "docs/policies/*", ".codex/agents.toml", ".codex/skills/*"]
+
+[agents.test-runner]
+task_classes = ["feature", "bugfix", "migration", "release"]
+context = ["package.json", "src/**", "docs/active/*", ".codex/skills/repository-skills.md"]
+
+[agents.release-guardian]
+task_classes = ["release"]
+context = [".github/workflows/*", "package.json", "docs/policies/*"]
+
+[agents.migration-review]
+task_classes = ["migration", "infrastructure"]
+context = ["src/**", "docs/active/*", "docs/policies/*"]
+
+[task_classes.feature]
+sequence = ["planner", "architecture-review", "api-guardian", "implementer", "test-runner", "reviewer"]
+required_validations = ["build", "websocket-contract-review"]
+escalation_triggers = ["new WebSocket payload", "new dependency", "plugin compatibility risk"]
+
+[task_classes.bugfix]
+sequence = ["planner", "implementer", "test-runner", "reviewer"]
+required_validations = ["build", "regression-test-or-manual-check"]
+escalation_triggers = ["protocol compatibility risk"]
+
+[task_classes.migration]
+sequence = ["planner", "migration-review", "architecture-review", "implementer", "test-runner", "reviewer"]
+required_validations = ["build", "migration-path-review", "rollback-review"]
+escalation_triggers = ["MongoDB schema change", "config migration", "backward compatibility risk"]
+
+[task_classes.release]
+sequence = ["release-guardian", "test-runner", "governance-review"]
+required_validations = ["build", "release-notes-check"]
+escalation_triggers = ["workflow change", "runtime version change"]
+
+[task_classes.refactor]
+sequence = ["planner", "architecture-review", "implementer", "test-runner", "reviewer"]
+required_validations = ["build", "behavioral-equivalence-review"]
+escalation_triggers = ["public protocol change"]
+
+[task_classes.infrastructure]
+sequence = ["planner", "architecture-review", "governance-review", "implementer", "test-runner", "reviewer"]
+required_validations = ["build", "standalone-repository-check"]
+escalation_triggers = ["new tooling requirement", "root dependency risk"]
+
+[escalation]
+websocket_contract_change = "api-guardian"
+new_dependency = "architecture-review"
+storage_change = "migration-review"
+release_workflow_change = "release-guardian"
+policy_or_agent_change = "governance-review"
+root_orchestration_dependency = "governance-review"

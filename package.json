@@ -1,0 +1,30 @@
+{
+  "name": "rw-girs",
+  "version": "0.1.0",
+  "description": "Node Websocket Backend Server for RisingWorld Plugin GlobalIntercom",
+  "main": "dist/main.js",
+  "author": "Maik 'Devidian' Laschober",
+  "license": "MIT",
+  "packageManager": "yarn@4.15.0",
+  "scripts": {
+    "build": "rm -rf dist && tsc --build tsconfig.build.json",
+    "test": "yarn build && node dist/contract-smoke.js",
+    "start": "tsc;node dist/main",
+    "start:dev": "npx node --env-file=.env.app.local -r ts-node/register src/main.ts"
+  },
+  "dependencies": {
+    "discord.js": "^14.24.2",
+    "jdenticon": "^3.3.0",
+    "mongodb": "^7.0.0",
+    "rxjs": "^7.8.2",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "@types/ws": "^8.18.1",
+    "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.9.3"
+  }
+}
