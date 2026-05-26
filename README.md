@@ -23,6 +23,13 @@ Environment variables:
 - `GIRS_APP_NAME`: service name used in startup logging
 - `GIRS_CHANNEL_SECRET`: HMAC secret for password-protected channels, default
   matches the legacy relay fallback
+- `GIRS_DISCORD_ENABLED`: enables optional Discord forwarding when `true`;
+  forwarding also enables automatically when token and channel mapping are set
+- `GIRS_DISCORD_BOT_TOKEN`: Discord bot token
+- `GIRS_DISCORD_CHANNELS`: comma-separated relay-to-Discord channel id mapping,
+  for example `global:123456789012345678,global-de:234567890123456789`
+- `GIRS_DISCORD_FAILURE_BACKOFF_MS`: per-channel send-failure backoff, default
+  `60000`
 
 Legacy aliases are accepted where useful: `APP_WSS_PORT`, `PORT`, `SALT`, and
 `APP_LOGLEVEL`, `APP_TITLE`.
@@ -35,6 +42,9 @@ Legacy aliases are accepted where useful: `APP_WSS_PORT`, `PORT`, `SALT`, and
   JSON with atomic file replacement.
 - Chat messages are relayed only in memory and are never written to the
   persistence file.
+- Optional Discord forwarding sends configured relay channels to Discord
+  channel ids. It is disabled unless configured and never changes the
+  WebSocket relay payload.
 - Restart recovery restores saved players and channels, marks players offline,
   and waits for plugin clients to reconnect and send `playerOnline`.
 - The relay preserves the current Java plugin event names and payload fields.

@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import WebSocket from "ws";
 import { GIEvent, WSMessage } from "./relay/types";
+import type { DiscordMessageSender } from "./discord/discord-forwarder";
 
 class TestClient {
   private readonly queue: WSMessage[] = [];
@@ -113,6 +114,8 @@ async function main(): Promise<void> {
   assert(JSON.stringify(online.payload).includes("smoke"), "persisted player channel was not restored");
   clientC.close();
   await restarted.stop();
+
+  await verifyDiscordForwardingAdapter();
 }
 
 function connect(): Promise<TestClient> {
@@ -138,6 +141,66 @@ async function expectSuccess(client: TestClient, successCode: string): Promise<W
 
 function player(playerUID: string, playerName: string): { playerUID: string; playerName: string } {
   return { playerUID, playerName };
+}
+
+async function verifyDiscordForwardingAdapter(): Promise<void> {
+  const { DiscordForwarder } = await import("./discord/discord-forwarder");
+  const sender = new MockDiscordSender();
+  const forwarder = new DiscordForwarder(
+    {
+      enabled: true,
+      botToken: "mock-token",
+      channelIdsByRelayChannel: new Map([["global", "1234567890"]]),
+      failureBackoffMs: 100,
+    },
+    sender,
+  );
+  await forwarder.start();
+  await forwarder.forward({
+    createdOn: new Date().toISOString(),
+    chatVersion: 2,
+    chatContent: "forward me",
+    chatChannel: "global",
+    playerName: "Alice",
+    playerUID: "100",
+    sourceName: "SmokeA",
+    sourceIP: "127.0.0.1",
+    sourceVersion: "test",
+  });
+  await forwarder.forward({
+    createdOn: new Date().toISOString(),
+    chatVersion: 2,
+    chatContent: "ignore me",
+    chatChannel: "local",
+    playerName: "Alice",
+    playerUID: "100",
+    sourceName: "SmokeA",
+    sourceIP: "127.0.0.1",
+    sourceVersion: "test",
+  });
+  assert(sender.started, "Discord mock sender was not started");
+  assert(sender.messages.length === 1, "Discord forwarding should only send configured channels");
+  assert(sender.messages[0]?.channelId === "1234567890", "Discord forwarding used the wrong channel id");
+  assert(sender.messages[0]?.content.includes("forward me") ?? false, "Discord forwarding did not include content");
+  await forwarder.stop();
+}
+
+class MockDiscordSender implements DiscordMessageSender {
+  started = false;
+  stopped = false;
+  readonly messages: Array<{ channelId: string; content: string }> = [];
+
+  async start(): Promise<void> {
+    this.started = true;
+  }
+
+  async stop(): Promise<void> {
+    this.stopped = true;
+  }
+
+  async send(channelId: string, content: string): Promise<void> {
+    this.messages.push({ channelId, content });
+  }
 }
 
 function assert(condition: boolean, message: string): void {

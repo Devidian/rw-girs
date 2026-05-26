@@ -3,6 +3,7 @@ import type WebSocket from "ws";
 import { WebSocketServer } from "ws";
 import { logger } from "../utils/logger";
 import { systemConfig } from "../utils/system-config";
+import { DiscordForwarder } from "../discord/discord-forwarder";
 import { RelayState } from "./relay-state";
 import {
   ChatMessage,
@@ -21,12 +22,14 @@ import {
 
 export class RelayServer {
   private readonly state = new RelayState(systemConfig.persistencePath, systemConfig.channelSecret);
+  private readonly discordForwarder = DiscordForwarder.fromSystemConfig();
   private server: WebSocketServer | null = null;
   private saveTimer: NodeJS.Timeout | null = null;
   private connectionIndex = 0;
 
   async start(): Promise<void> {
     await this.state.load();
+    await this.discordForwarder.start();
     this.server = new WebSocketServer({ host: systemConfig.host, port: systemConfig.port });
     this.server.on("connection", (client: RelayClient, request: IncomingMessage) => this.onConnection(client, request));
     this.server.on("error", (error) => logger.error("Relay server error", error));
@@ -42,6 +45,7 @@ export class RelayServer {
       this.saveTimer = null;
     }
     await this.state.save(true);
+    await this.discordForwarder.stop();
     await new Promise<void>((resolve, reject) => {
       if (!this.server) {
         resolve();
@@ -135,6 +139,11 @@ export class RelayServer {
       return;
     }
     this.broadcast({ event: GIEvent.BroadcastMessage, payload: chatMessage });
+    if (systemConfig.logLevel === "debug") 
+      logger.debug(chatMessage);
+    this.discordForwarder.forward(chatMessage).catch((error) => {
+      logger.warn(`Discord forwarding failed: ${(error as Error).message}`);
+    });
   }
 
   private sendAll(client: RelayClient, messages: WSMessage[]): void {
