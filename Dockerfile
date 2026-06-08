@@ -31,4 +31,7 @@ COPY --from=build /app/dist ./dist
 
 EXPOSE 47015
 
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD node -e 'const WebSocket = require("ws"); const port = process.env.GIRS_PORT || "47015"; const socket = new WebSocket("ws://127.0.0.1:" + port + "/ws"); const timeout = setTimeout(() => { socket.terminate(); process.exit(1); }, 4000); socket.on("open", () => { clearTimeout(timeout); socket.close(); process.exit(0); }); socket.on("error", () => { clearTimeout(timeout); process.exit(1); });'
+
 CMD ["node", "dist/main.js"]

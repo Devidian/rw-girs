@@ -67,36 +67,44 @@ persisted.
 The published DockerHub image is:
 
 ```sh
-${DOCKER_USERNAME}/rw-girs
+devidian/rw-girs
 ```
 
 Pull and run the current `main` build:
 
 ```sh
-docker pull ${DOCKER_USERNAME}/rw-girs:latest
+docker pull devidian/rw-girs:latest
 docker run --rm -p 47015:47015 \
   -v rw-girs-data:/app/data \
-  ${DOCKER_USERNAME}/rw-girs:latest
+  devidian/rw-girs:latest
+```
+
+An example Docker Compose deployment with persistent state and a WebSocket
+healthcheck is available in `docker-compose.example.yml`:
+
+```sh
+docker compose -f docker-compose.example.yml up -d
 ```
 
 Versioned releases are also available after Git tags are published. For
 `v0.1.0`, the workflow publishes both:
 
 ```sh
-${DOCKER_USERNAME}/rw-girs:v0.1.0
-${DOCKER_USERNAME}/rw-girs:0.1.0
+devidian/rw-girs:v0.1.0
+devidian/rw-girs:0.1.0
 ```
 
 The container exposes port `47015` and starts the relay with
 `node dist/main.js`. Runtime configuration is still controlled through the
-environment variables listed above.
+environment variables listed above. The image and Compose example check
+container health by opening `ws://127.0.0.1:${GIRS_PORT:-47015}/ws`.
 
 ## CI and Release
 
 GitHub Actions validates pull requests with dependency installation, TypeScript
 build, contract smoke test, and a Docker image build without DockerHub push.
 
-Pushes to `main` publish only `${DOCKER_USERNAME}/rw-girs:latest`. Git tags that
+Pushes to `main` publish only `devidian/rw-girs:latest`. Git tags that
 match `v*` publish versioned DockerHub tags only, for example `v0.1.0` and
 `0.1.0`; tag builds do not update `latest`. The tag workflow also creates a
 GitHub Release with generated release notes and the DockerHub image tags.
