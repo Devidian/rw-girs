@@ -51,9 +51,9 @@ DockerHub tags manually if a release is pushed with the wrong metadata.
 - [x] Document DockerHub image usage and release behavior.
 - [x] Validate local build and contract smoke test.
 - [x] Validate Docker image build and healthcheck on an available Docker host.
-- [ ] Publish `v0.1.0` after the checked commit is merged to `main`.
+- [x] Publish `v0.1.0` after the checked commit is merged to `main`.
 
 ## Validation Notes
 - `yarn install --immutable`, `yarn build`, and `yarn test` passed on 2026-06-08.
 - A clean `rw-girs:plan-close` image build and isolated container healthcheck passed on `strato.V80` on 2026-06-08.
-- GitHub currently has no `v0.1.0` release. Do not publish until the uncommitted Docker/README/Compose changes are reviewed and committed.
+- Commit `dfcfc81` was pushed to `main`; CI, DockerHub publishing, and the GitHub `v0.1.0` release completed successfully on 2026-06-08.
