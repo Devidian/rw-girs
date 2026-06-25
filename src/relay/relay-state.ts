@@ -24,7 +24,7 @@ const DEFAULT_CHANNELS = ["global", "global-dev", "global-de", "global-en", "glo
 export class RelayState {
   private readonly players = new Map<string, GlobalIntercomPlayer>();
   private readonly channels = new Map<string, GlobalIntercomChannel>();
-  private readonly playerOrigins = new Map<string, RelayClient>();
+  private readonly playerOrigins = new Map<string, Set<RelayClient>>();
   private dirty = false;
 
   constructor(
@@ -79,8 +79,9 @@ export class RelayState {
   }
 
   removeOrigin(client: RelayClient): void {
-    for (const [playerId, origin] of this.playerOrigins.entries()) {
-      if (origin === client) {
+    for (const [playerId, origins] of this.playerOrigins.entries()) {
+      origins.delete(client);
+      if (origins.size === 0) {
         this.playerOrigins.delete(playerId);
       }
     }
@@ -89,20 +90,24 @@ export class RelayState {
   playerOnline(client: RelayClient, data: PlayerMessage): WSMessage<GlobalIntercomPlayer> {
     const player = this.getPlayer(data);
     player.online = true;
-    this.playerOrigins.set(player._id, client);
+    this.addOrigin(player._id, client);
     this.markPersistentPlayerDirty(player);
     return { event: GIEvent.PlayerOnline, payload: player };
   }
 
-  playerOffline(data: PlayerMessage): WSMessage<GlobalIntercomPlayer> | null {
+  playerOffline(client: RelayClient, data: PlayerMessage): WSMessage<GlobalIntercomPlayer> | null {
     const player = this.players.get(data.playerUID);
     if (!player) {
       return null;
     }
 
-    player.online = false;
-    this.playerOrigins.delete(player._id);
-    if (!player.saveSettings && player.channels.length < 1) {
+    const origins = this.playerOrigins.get(player._id);
+    origins?.delete(client);
+    if (origins && origins.size === 0) {
+      this.playerOrigins.delete(player._id);
+    }
+    player.online = Boolean(origins && origins.size > 0);
+    if (!player.online && !player.saveSettings && player.channels.length < 1) {
       this.players.delete(player._id);
     } else {
       this.markPersistentPlayerDirty(player);
@@ -234,9 +239,11 @@ export class RelayState {
       }
       removeValue(otherPlayer.channels, channelName);
       this.markPersistentPlayerDirty(otherPlayer);
-      const origin = this.playerOrigins.get(otherPlayer._id);
-      if (origin && otherPlayer._id !== player._id) {
-        notifications.push({ client: origin, message: this.error(otherPlayer, channelName, "RELAY_CH_CLOSED") });
+      const origins = this.playerOrigins.get(otherPlayer._id);
+      if (origins && otherPlayer._id !== player._id) {
+        for (const origin of origins) {
+          notifications.push({ client: origin, message: this.error(otherPlayer, channelName, "RELAY_CH_CLOSED") });
+        }
       }
     }
     this.dirty = true;
@@ -277,10 +284,21 @@ export class RelayState {
 
   relayClients(): RelayClient[] {
     const clients = new Set<RelayClient>();
-    for (const client of this.playerOrigins.values()) {
-      clients.add(client);
+    for (const origins of this.playerOrigins.values()) {
+      for (const client of origins) {
+        clients.add(client);
+      }
     }
     return [...clients];
+  }
+
+  private addOrigin(playerId: string, client: RelayClient): void {
+    const origins = this.playerOrigins.get(playerId);
+    if (origins) {
+      origins.add(client);
+      return;
+    }
+    this.playerOrigins.set(playerId, new Set([client]));
   }
 
   private ensureDefaultChannels(): void {

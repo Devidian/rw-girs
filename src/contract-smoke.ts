@@ -98,6 +98,8 @@ async function main(): Promise<void> {
   await expectEvent(clientA, GIEvent.PlayerCreateChannel);
   await expectSuccess(clientA, "RELAY_CREATE_SUCCESS");
 
+  await verifySamePlayerMultipleOrigins();
+
   clientA.close();
   clientB.close();
   await server.stop();
@@ -137,6 +139,55 @@ async function expectSuccess(client: TestClient, successCode: string): Promise<W
   assert(message.event === GIEvent.PlayerResponseSuccess, `expected success response, got ${message.event}`);
   assert(message.successCode === successCode, `expected ${successCode}, got ${message.successCode ?? ""}`);
   return message;
+}
+
+async function verifySamePlayerMultipleOrigins(): Promise<void> {
+  const clientGame = await connect();
+  const clientWeb = await connect();
+
+  clientGame.send(GIEvent.PlayerOnline, player("300", "Carol"));
+  await expectEvent(clientGame, GIEvent.PlayerOnline);
+  clientWeb.send(GIEvent.PlayerOnline, player("300", "Carol"));
+  await expectEvent(clientWeb, GIEvent.PlayerOnline);
+
+  clientGame.send(GIEvent.PlayerJoinChannel, { ...player("300", "Carol"), channel: "global" });
+  await expectEvent(clientGame, GIEvent.PlayerJoinChannel);
+  await expectSuccess(clientGame, "RELAY_JOIN_SUCCESS");
+
+  clientGame.send(GIEvent.BroadcastMessage, {
+    createdOn: new Date().toISOString(),
+    chatVersion: 2,
+    chatContent: "same player cross source",
+    chatChannel: "global",
+    playerName: "Carol",
+    playerUID: "300",
+    sourceName: "Game",
+    sourceIP: "127.0.0.1",
+    sourceVersion: "test",
+    attachment: "abc",
+  });
+  const gameMessage = await expectEvent(clientGame, GIEvent.BroadcastMessage);
+  const webMessage = await expectEvent(clientWeb, GIEvent.BroadcastMessage);
+  assert(JSON.stringify(gameMessage.payload).includes("\"attachment\":\"abc\""), "game origin lost attachment");
+  assert(JSON.stringify(webMessage.payload).includes("same player cross source"), "web origin missed own game message");
+
+  clientGame.send(GIEvent.PlayerOffline, player("300", "Carol"));
+  await expectEvent(clientGame, GIEvent.PlayerOffline);
+  clientWeb.send(GIEvent.BroadcastMessage, {
+    createdOn: new Date().toISOString(),
+    chatVersion: 2,
+    chatContent: "web still connected",
+    chatChannel: "global",
+    playerName: "Carol",
+    playerUID: "300",
+    sourceName: "Web",
+    sourceIP: "web",
+    sourceVersion: "test",
+  });
+  await expectEvent(clientWeb, GIEvent.BroadcastMessage);
+
+  clientGame.close();
+  clientWeb.close();
 }
 
 function player(playerUID: string, playerName: string): { playerUID: string; playerName: string } {

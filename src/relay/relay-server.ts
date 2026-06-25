@@ -97,7 +97,7 @@ export class RelayServer {
           this.send(client, this.state.playerOnline(client, message.payload as PlayerMessage));
           break;
         case GIEvent.PlayerOffline: {
-          const response = this.state.playerOffline(message.payload as PlayerMessage);
+          const response = this.state.playerOffline(client, message.payload as PlayerMessage);
           if (response) {
             this.send(client, response);
           }
