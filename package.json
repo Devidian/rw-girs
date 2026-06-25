@@ -17,7 +17,7 @@
     "jdenticon": "^3.3.0",
     "mongodb": "^7.0.0",
     "rxjs": "^7.8.2",
-    "ws": "^8.20.1"
+    "ws": "^8.21.0"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",
