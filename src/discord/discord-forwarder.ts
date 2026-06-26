@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits } from "discord.js";
+import { Client, GatewayIntentBits, type Message } from "discord.js";
 import { logger } from "../utils/logger";
 import { systemConfig } from "../utils/system-config";
 import { ChatMessage } from "../relay/types";
@@ -11,9 +11,17 @@ export interface DiscordForwarderConfig {
 }
 
 export interface DiscordMessageSender {
-  start(): Promise<void>;
+  start(onMessage?: (message: DiscordInboundMessage) => void): Promise<void>;
   stop(): Promise<void>;
   send(channelId: string, content: string): Promise<void>;
+}
+
+export interface DiscordInboundMessage {
+  channelId: string;
+  authorId: string;
+  authorName: string;
+  content: string;
+  createdAt: Date;
 }
 
 export class DiscordForwarder {
@@ -28,7 +36,7 @@ export class DiscordForwarder {
     return new DiscordForwarder(systemConfig.discord, new DiscordJsMessageSender(systemConfig.discord.botToken));
   }
 
-  async start(): Promise<void> {
+  async start(onMessage?: (message: ChatMessage) => void): Promise<void> {
     if (!this.config.enabled) {
       return;
     }
@@ -36,7 +44,12 @@ export class DiscordForwarder {
       logger.warn("Discord forwarding is enabled but token or channel mapping is missing; forwarding disabled.");
       return;
     }
-    await this.sender.start();
+    await this.sender.start((message) => {
+      const chatMessage = this.toRelayMessage(message);
+      if (chatMessage) {
+        onMessage?.(chatMessage);
+      }
+    });
     logger.log("Discord relay forwarding enabled.");
   }
 
@@ -64,6 +77,25 @@ export class DiscordForwarder {
       logger.warn(`Discord forwarding failed for channel ${discordChannelId}: ${(error as Error).message}`);
     }
   }
+
+  private toRelayMessage(message: DiscordInboundMessage): ChatMessage | null {
+    const relayChannel = relayChannelForDiscordChannel(this.config.channelIdsByRelayChannel, message.channelId);
+    const content = message.content.trim();
+    if (!relayChannel || !content) {
+      return null;
+    }
+    return {
+      createdOn: message.createdAt.toISOString(),
+      chatVersion: 2,
+      chatContent: content,
+      chatChannel: relayChannel,
+      playerName: message.authorName.trim() || "Discord User",
+      playerUID: `discord:${message.authorId}`,
+      sourceName: "Discord",
+      sourceIP: "discord",
+      sourceVersion: "discord.js",
+    };
+  }
 }
 
 class DiscordJsMessageSender implements DiscordMessageSender {
@@ -71,11 +103,19 @@ class DiscordJsMessageSender implements DiscordMessageSender {
 
   constructor(private readonly token: string | undefined) {}
 
-  async start(): Promise<void> {
+  async start(onMessage?: (message: DiscordInboundMessage) => void): Promise<void> {
     if (!this.token) {
       return;
     }
-    this.client = new Client({ intents: [GatewayIntentBits.Guilds] });
+    this.client = new Client({
+      intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
+    });
+    this.client.on("messageCreate", (message) => {
+      const inboundMessage = toInboundMessage(message);
+      if (inboundMessage) {
+        onMessage?.(inboundMessage);
+      }
+    });
     await this.client.login(this.token);
   }
 
@@ -114,6 +154,15 @@ function normalizeChannel(channel: string): string {
   return (channel ?? "").trim().toLowerCase();
 }
 
+function relayChannelForDiscordChannel(channelIdsByRelayChannel: Map<string, string>, discordChannelId: string): string | null {
+  for (const [relayChannel, mappedDiscordChannelId] of channelIdsByRelayChannel.entries()) {
+    if (mappedDiscordChannelId === discordChannelId) {
+      return relayChannel;
+    }
+  }
+  return null;
+}
+
 function isDiscordOrigin(chatMessage: ChatMessage): boolean {
   return normalizeChannel(chatMessage.sourceName) === "discord"
     || normalizeChannel(chatMessage.sourceIP) === "discord";
@@ -121,4 +170,25 @@ function isDiscordOrigin(chatMessage: ChatMessage): boolean {
 
 function canSendText(channel: unknown): channel is SendableTextChannel {
   return typeof (channel as SendableTextChannel | undefined)?.send === "function";
+}
+
+function toInboundMessage(message: Message): DiscordInboundMessage | null {
+  if (message.author.bot || !message.guildId) {
+    return null;
+  }
+  const contentParts = [message.content.trim()];
+  for (const attachment of message.attachments.values()) {
+    contentParts.push(attachment.url);
+  }
+  const content = contentParts.filter(Boolean).join(" ").trim();
+  if (!content) {
+    return null;
+  }
+  return {
+    channelId: message.channelId,
+    authorId: message.author.id,
+    authorName: message.member?.displayName ?? message.author.globalName ?? message.author.username,
+    content,
+    createdAt: message.createdAt,
+  };
 }

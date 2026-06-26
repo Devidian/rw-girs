@@ -42,9 +42,12 @@ Legacy aliases are accepted where useful: `APP_WSS_PORT`, `PORT`, `SALT`, and
   JSON with atomic file replacement.
 - Chat messages are relayed only in memory and are never written to the
   persistence file.
-- Optional Discord forwarding sends configured relay channels to Discord
-  channel ids. It is disabled unless configured and never changes the
-  WebSocket relay payload.
+- Optional Discord forwarding bridges configured relay channels and Discord
+  channel ids in both directions. Discord user messages in mapped channels are
+  broadcast into the matching relay channel with Discord source metadata, while
+  Discord-originated relay messages are not echoed back to Discord.
+- The Discord bot needs the `Guild Messages` and `Message Content` gateway
+  intents enabled in the Discord Developer Portal so user messages can be read.
 - Restart recovery restores saved players and channels, marks players offline,
   and waits for plugin clients to reconnect and send `playerOnline`.
 - The relay preserves the current Java plugin event names and payload fields.

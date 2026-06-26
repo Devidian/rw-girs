@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import WebSocket from "ws";
 import { GIEvent, WSMessage } from "./relay/types";
-import type { DiscordMessageSender } from "./discord/discord-forwarder";
+import type { DiscordInboundMessage, DiscordMessageSender } from "./discord/discord-forwarder";
 
 class TestClient {
   private readonly queue: WSMessage[] = [];
@@ -234,15 +234,47 @@ async function verifyDiscordForwardingAdapter(): Promise<void> {
   assert(sender.messages[0]?.channelId === "1234567890", "Discord forwarding used the wrong channel id");
   assert(sender.messages[0]?.content.includes("forward me") ?? false, "Discord forwarding did not include content");
   await forwarder.stop();
+
+  const inboundSender = new MockDiscordSender();
+  const inboundMessages: string[] = [];
+  const inboundForwarder = new DiscordForwarder(
+    {
+      enabled: true,
+      botToken: "mock-token",
+      channelIdsByRelayChannel: new Map([["global", "1234567890"]]),
+      failureBackoffMs: 100,
+    },
+    inboundSender,
+  );
+  await inboundForwarder.start((message) => inboundMessages.push(message.chatContent));
+  inboundSender.receive({
+    channelId: "1234567890",
+    authorId: "42",
+    authorName: "Discord Alice",
+    content: "hello from discord",
+    createdAt: new Date(),
+  });
+  inboundSender.receive({
+    channelId: "9999999999",
+    authorId: "42",
+    authorName: "Discord Alice",
+    content: "wrong channel",
+    createdAt: new Date(),
+  });
+  assert(inboundMessages.length === 1, "Discord inbound forwarding should only receive configured channels");
+  assert(inboundMessages[0] === "hello from discord", "Discord inbound forwarding lost content");
+  await inboundForwarder.stop();
 }
 
 class MockDiscordSender implements DiscordMessageSender {
   started = false;
   stopped = false;
   readonly messages: Array<{ channelId: string; content: string }> = [];
+  private onMessage: ((message: DiscordInboundMessage) => void) | undefined;
 
-  async start(): Promise<void> {
+  async start(onMessage?: (message: DiscordInboundMessage) => void): Promise<void> {
     this.started = true;
+    this.onMessage = onMessage;
   }
 
   async stop(): Promise<void> {
@@ -251,6 +283,10 @@ class MockDiscordSender implements DiscordMessageSender {
 
   async send(channelId: string, content: string): Promise<void> {
     this.messages.push({ channelId, content });
+  }
+
+  receive(message: DiscordInboundMessage): void {
+    this.onMessage?.(message);
   }
 }
 

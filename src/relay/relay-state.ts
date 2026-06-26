@@ -282,6 +282,19 @@ export class RelayState {
     return null;
   }
 
+  externalBroadcastMessage(data: ChatMessage): WSMessage<GlobalIntercomPlayer> | null {
+    const channelName = normalizeChannel(data.chatChannel);
+    if (!this.channels.has(channelName)) {
+      return {
+        event: GIEvent.PlayerResponseError,
+        payload: this.anonymousPlayer(data.playerUID, data.playerName),
+        subject: channelName,
+        errorCode: "RELAY_CHANNEL_UNKNOWN",
+      };
+    }
+    return null;
+  }
+
   relayClients(): RelayClient[] {
     const clients = new Set<RelayClient>();
     for (const origins of this.playerOrigins.values()) {

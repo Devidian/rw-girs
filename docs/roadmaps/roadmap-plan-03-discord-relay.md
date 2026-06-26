@@ -1,7 +1,7 @@
 # Roadmap Plan 03 Discord Relay
 
 ## Objective
-Add an optional Discord component to the GIRS relay service so global relay messages can be forwarded to configured Discord channel ids.
+Add an optional Discord component to the GIRS relay service so global relay messages can be bridged with configured Discord channel ids.
 
 ## Ownership
 Primary repository/service: `rw-girs`
@@ -24,7 +24,7 @@ Supporting repository:
 ## Risks
 - Discord dependencies can increase deployment requirements for users who do not enable the feature.
 - Forwarding by names would be unstable; channel ids must be the persisted target identifiers.
-- Message forwarding must not echo Discord-originated messages back into the relay unless explicitly planned later.
+- Message forwarding must avoid loops when Discord-originated messages enter the relay.
 
 ## Validation Strategy
 - Run `yarn test`.
@@ -45,3 +45,4 @@ Keep Discord support behind configuration. Removing or disabling the Discord ada
 - Phase 4 complete: missing/non-text Discord channels and send failures are logged and backed off per channel.
 - Phase 5 complete: README is updated and the contract smoke test includes a mocked Discord adapter.
 - Validation passed with `yarn build` and `yarn test`.
+- Follow-up complete: Discord user messages in mapped Discord channels are now converted to external relay broadcasts for the matching GIRS channel, using Discord source metadata so they are not echoed back to Discord.

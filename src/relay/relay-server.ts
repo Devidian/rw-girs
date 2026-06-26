@@ -29,7 +29,7 @@ export class RelayServer {
 
   async start(): Promise<void> {
     await this.state.load();
-    await this.discordForwarder.start();
+    await this.discordForwarder.start((chatMessage) => this.handleExternalBroadcast(chatMessage));
     this.server = new WebSocketServer({ host: systemConfig.host, port: systemConfig.port });
     this.server.on("connection", (client: RelayClient, request: IncomingMessage) => this.onConnection(client, request));
     this.server.on("error", (error) => logger.error("Relay server error", error));
@@ -141,6 +141,21 @@ export class RelayServer {
     this.broadcast({ event: GIEvent.BroadcastMessage, payload: chatMessage });
     if (systemConfig.logLevel === "debug") 
       logger.debug(chatMessage);
+    this.discordForwarder.forward(chatMessage).catch((error) => {
+      logger.warn(`Discord forwarding failed: ${(error as Error).message}`);
+    });
+  }
+
+  private handleExternalBroadcast(chatMessage: ChatMessage): void {
+    const error = this.state.externalBroadcastMessage(chatMessage);
+    if (error) {
+      logger.warn(`Ignoring external relay broadcast for ${error.subject ?? "unknown"}: ${error.errorCode ?? "invalid"}`);
+      return;
+    }
+    this.broadcast({ event: GIEvent.BroadcastMessage, payload: chatMessage });
+    if (systemConfig.logLevel === "debug") {
+      logger.debug(chatMessage);
+    }
     this.discordForwarder.forward(chatMessage).catch((error) => {
       logger.warn(`Discord forwarding failed: ${(error as Error).message}`);
     });
