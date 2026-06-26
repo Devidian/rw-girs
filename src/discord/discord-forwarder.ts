@@ -146,12 +146,16 @@ function formatDiscordMessage(chatMessage: ChatMessage): string {
   const channel = normalizeChannel(chatMessage.chatChannel);
   const player = chatMessage.playerName?.trim() || "Unknown";
   const source = chatMessage.sourceName?.trim() || "Rising World";
-  const content = chatMessage.chatContent?.trim() || "";
-  return `[${channel}] ${player} @ ${source}: ${content}`;
+  const content = stripFormattingTags(chatMessage.chatContent?.trim() || "");
+  return `[${channel}] ${player} @ ${source}:\n${content}`;
 }
 
 function normalizeChannel(channel: string): string {
   return (channel ?? "").trim().toLowerCase();
+}
+
+function stripFormattingTags(content: string): string {
+  return content.replace(/<\/?[A-Za-z][^>]*>/g, "").trim();
 }
 
 function relayChannelForDiscordChannel(channelIdsByRelayChannel: Map<string, string>, discordChannelId: string): string | null {
