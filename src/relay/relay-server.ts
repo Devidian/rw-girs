@@ -26,6 +26,7 @@ export class RelayServer {
   private server: WebSocketServer | null = null;
   private saveTimer: NodeJS.Timeout | null = null;
   private connectionIndex = 0;
+  private saveQueue: Promise<void> = Promise.resolve();
 
   async start(): Promise<void> {
     await this.state.load();
@@ -34,7 +35,7 @@ export class RelayServer {
     this.server.on("connection", (client: RelayClient, request: IncomingMessage) => this.onConnection(client, request));
     this.server.on("error", (error) => logger.error("Relay server error", error));
     this.saveTimer = setInterval(() => {
-      this.state.save().catch((error) => logger.error("Periodic relay save failed", error));
+      this.queueStateSave("periodic");
     }, systemConfig.saveIntervalMs);
     logger.log(`${systemConfig.appName} listening on ${systemConfig.host}:${systemConfig.port}`);
   }
@@ -44,6 +45,7 @@ export class RelayServer {
       clearInterval(this.saveTimer);
       this.saveTimer = null;
     }
+    await this.saveQueue;
     await this.state.save(true);
     await this.discordForwarder.stop();
     await new Promise<void>((resolve, reject) => {
@@ -89,28 +91,35 @@ export class RelayServer {
           break;
         case GIEvent.RegisterPlayer:
           this.send(client, this.state.registerPlayer(message.payload as PlayerRegisterMessage));
+          this.queueStateSave(message.event);
           break;
         case GIEvent.UnregisterPlayer:
           this.send(client, this.state.unregisterPlayer(message.payload as PlayerUnregisterMessage));
+          this.queueStateSave(message.event);
           break;
         case GIEvent.PlayerOnline:
           this.send(client, this.state.playerOnline(client, message.payload as PlayerMessage));
+          this.queueStateSave(message.event);
           break;
         case GIEvent.PlayerOffline: {
           const response = this.state.playerOffline(client, message.payload as PlayerMessage);
           if (response) {
             this.send(client, response);
           }
+          this.queueStateSave(message.event);
           break;
         }
         case GIEvent.PlayerJoinChannel:
           this.sendAll(client, this.state.joinChannel(message.payload as PlayerJoinChannelMessage));
+          this.queueStateSave(message.event);
           break;
         case GIEvent.PlayerLeaveChannel:
           this.sendAll(client, this.state.leaveChannel(message.payload as PlayerLeaveChannelMessage));
+          this.queueStateSave(message.event);
           break;
         case GIEvent.PlayerCreateChannel:
           this.sendAll(client, this.state.createChannel(message.payload as PlayerCreateChannelMessage));
+          this.queueStateSave(message.event);
           break;
         case GIEvent.PlayerCloseChannel: {
           const result = this.state.closeChannel(message.payload as PlayerCloseChannelMessage);
@@ -118,10 +127,12 @@ export class RelayServer {
           for (const notification of result.notifications) {
             this.send(notification.client, notification.message);
           }
+          this.queueStateSave(message.event);
           break;
         }
         case GIEvent.PlayerOverrideChange:
           this.send(client, this.state.overrideChange(message.payload as PlayerOverrideChangeMessage));
+          this.queueStateSave(message.event);
           break;
         default:
           logger.warn(`Unknown relay event ${message.event} from ${client.relayId}`);
@@ -180,6 +191,12 @@ export class RelayServer {
     for (const client of this.state.relayClients()) {
       this.send(client, message);
     }
+  }
+
+  private queueStateSave(reason: string): void {
+    this.saveQueue = this.saveQueue
+      .then(() => this.state.save())
+      .catch((error) => logger.error(`Relay save failed after ${reason}`, error));
   }
 }
 

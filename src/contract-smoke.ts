@@ -94,6 +94,7 @@ async function main(): Promise<void> {
 
   clientA.send(GIEvent.RegisterPlayer, { ...player("100", "Alice"), register: true });
   await expectSuccess(clientA, "RELAY_SUCCESS_REGISTER");
+  await waitForPersisted(process.env.GIRS_PERSISTENCE_PATH, "\"_id\": \"100\"");
   clientA.send(GIEvent.PlayerCreateChannel, { ...player("100", "Alice"), channel: "smoke" });
   await expectEvent(clientA, GIEvent.PlayerCreateChannel);
   await expectSuccess(clientA, "RELAY_CREATE_SUCCESS");
@@ -139,6 +140,24 @@ async function expectSuccess(client: TestClient, successCode: string): Promise<W
   assert(message.event === GIEvent.PlayerResponseSuccess, `expected success response, got ${message.event}`);
   assert(message.successCode === successCode, `expected ${successCode}, got ${message.successCode ?? ""}`);
   return message;
+}
+
+async function waitForPersisted(path: string | undefined, content: string): Promise<void> {
+  assert(Boolean(path), "persistence path is missing");
+  const deadline = Date.now() + 3000;
+  let lastError: Error | null = null;
+  while (Date.now() < deadline) {
+    try {
+      const persisted = await readFile(path as string, "utf8");
+      if (persisted.includes(content)) {
+        return;
+      }
+    } catch (error) {
+      lastError = error as Error;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  throw lastError ?? new Error(`timed out waiting for persisted content ${content}`);
 }
 
 async function verifySamePlayerMultipleOrigins(): Promise<void> {
