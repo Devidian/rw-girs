@@ -144,9 +144,9 @@ interface SendableTextChannel {
 
 function formatDiscordMessage(chatMessage: ChatMessage): string {
   const channel = normalizeChannel(chatMessage.chatChannel);
-  const player = chatMessage.playerName?.trim() || "Unknown";
-  const source = chatMessage.sourceName?.trim() || "Rising World";
-  const content = stripFormattingTags(chatMessage.chatContent?.trim() || "");
+  const player = stripFormattingTags(chatMessage.playerName?.trim() || "Unknown");
+  const source = stripFormattingTags(chatMessage.sourceName?.trim() || "Rising World");
+  const content = chatMessage.chatContent?.trim() || "";
   return `[${channel}] ${player} @ ${source}:\n${content}`;
 }
 

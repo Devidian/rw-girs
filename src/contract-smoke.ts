@@ -212,9 +212,9 @@ async function verifyDiscordForwardingAdapter(): Promise<void> {
     chatVersion: 2,
     chatContent: "<color=red><b>forward me</b></color>",
     chatChannel: "global",
-    playerName: "Alice",
+    playerName: "<color=#00ff00>Alice</color>",
     playerUID: "100",
-    sourceName: "SmokeA",
+    sourceName: "<color=#ff0000>SmokeA</color>",
     sourceIP: "127.0.0.1",
     sourceVersion: "test",
   });
@@ -233,7 +233,10 @@ async function verifyDiscordForwardingAdapter(): Promise<void> {
   assert(sender.messages.length === 1, "Discord forwarding should only send configured channels");
   assert(sender.messages[0]?.channelId === "1234567890", "Discord forwarding used the wrong channel id");
   assert(sender.messages[0]?.content.includes("forward me") ?? false, "Discord forwarding did not include content");
-  assert(sender.messages[0]?.content === "[global] Alice @ SmokeA:\nforward me", "Discord forwarding format is wrong");
+  assert(
+    sender.messages[0]?.content === "[global] Alice @ SmokeA:\n<color=red><b>forward me</b></color>",
+    "Discord forwarding format is wrong",
+  );
   await forwarder.stop();
 
   const inboundSender = new MockDiscordSender();
