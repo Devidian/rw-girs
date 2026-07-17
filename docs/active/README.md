@@ -2,6 +2,7 @@
 
 Active implementation tasks live here.
 
-- [CI, Docker, and Release v0.1.0](ci-docker-release-v0.1.0.md)
+No active implementation tasks. Completed work is stored under
+`docs/archive/`.
 
 Each task must include objective, ownership, dependencies, risks, validation strategy, affected repositories/services, rollback considerations, and a markdown checkbox checklist.

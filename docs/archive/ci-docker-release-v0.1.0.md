@@ -1,5 +1,10 @@
 # CI, Docker, and Release v0.1.0
 
+## Status
+
+Archived June 18, 2026. All implementation, validation, publication, and
+release checklist items are complete.
+
 ## Objective
 Add repository-local CI, DockerHub publishing, and GitHub Release automation for
 `rw-girs` v0.1.0.
