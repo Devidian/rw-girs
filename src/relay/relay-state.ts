@@ -30,7 +30,7 @@ export class RelayState {
   private readonly playerOrigins = new Map<string, Set<RelayClient>>();
   private readonly serverNames = new Map<RelayClient, string>();
   private readonly presenceSubscriptions = new Map<RelayClient, Set<string>>();
-  private readonly webClients = new Set<RelayClient>();
+  private readonly webClients = new Map<RelayClient, string>();
   private dirty = false;
 
   constructor(
@@ -103,7 +103,7 @@ export class RelayState {
 
   registerClient(client: RelayClient, data: ClientRegisterMessage): void {
     if (data.type === "web") {
-      this.webClients.add(client);
+      this.webClients.set(client, data.userName.trim());
       this.serverNames.delete(client);
     }
   }
@@ -116,7 +116,7 @@ export class RelayState {
 
   serverPresence(channel: string): RelayServerPresence[] {
     const channelName = normalizeChannel(channel);
-    return [...this.serverNames.entries()]
+    const presence = [...this.serverNames.entries()]
       .map(([client, name]) => {
         const players = [...this.players.values()].filter((player) =>
           player.online
@@ -126,6 +126,13 @@ export class RelayState {
         return { name, playerCount: players.length, players };
       })
       .sort((left, right) => left.name.localeCompare(right.name, undefined, { sensitivity: "base" }));
+    const webPlayers = [...this.players.values()]
+      .filter((player) => player.online && player.channels.includes(channelName)
+        && [...(this.playerOrigins.get(player._id) ?? [])].some((client) => this.webClients.has(client)))
+      .map((player) => player.name)
+      .sort((left, right) => left.localeCompare(right, undefined, { sensitivity: "base" }));
+    if (webPlayers.length > 0) presence.push({ name: "Web-Chat", playerCount: webPlayers.length, players: webPlayers });
+    return presence;
   }
 
   subscribeServerPresence(client: RelayClient, channel: string): string {

@@ -41,6 +41,7 @@ export interface ServerRegisterMessage {
 
 export interface ClientRegisterMessage {
   type: "web";
+  userName: string;
 }
 
 export interface ServerPresenceSubscribeMessage {
