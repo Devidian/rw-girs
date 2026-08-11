@@ -20,6 +20,7 @@ import {
   ServerPresenceSubscribeMessage,
   ServerRegisterMessage,
   ServerPresenceMessage,
+  ClientRegisterMessage,
   WSMessage,
 } from "./types";
 
@@ -103,6 +104,7 @@ export class RelayServer {
           this.queueStateSave(message.event);
           break;
         case GIEvent.PlayerOnline:
+          this.state.registerLegacyServer(client);
           this.send(client, this.state.playerOnline(client, message.payload as PlayerMessage));
           this.broadcastServerPresence();
           this.queueStateSave(message.event);
@@ -148,6 +150,9 @@ export class RelayServer {
         case GIEvent.ServerRegister:
           this.state.registerServer(client, message.payload as ServerRegisterMessage);
           this.broadcastServerPresence();
+          break;
+        case GIEvent.ClientRegister:
+          this.state.registerClient(client, message.payload as ClientRegisterMessage);
           break;
         case GIEvent.ServerPresenceSubscribe: {
           const payload = message.payload as ServerPresenceSubscribeMessage;

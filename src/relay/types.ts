@@ -18,6 +18,7 @@ export enum GIEvent {
   ServerRegister = "serverRegister",
   ServerPresence = "serverPresence",
   ServerPresenceSubscribe = "serverPresenceSubscribe",
+  ClientRegister = "clientRegister",
 }
 
 export interface WSMessage<T = unknown> {
@@ -36,6 +37,10 @@ export interface PlayerMessage {
 
 export interface ServerRegisterMessage {
   shortName?: string;
+}
+
+export interface ClientRegisterMessage {
+  type: "web";
 }
 
 export interface ServerPresenceSubscribeMessage {

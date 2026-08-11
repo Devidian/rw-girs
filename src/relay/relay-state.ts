@@ -18,6 +18,7 @@ import {
   PlayerUnregisterMessage,
   RelayClient,
   ServerRegisterMessage,
+  ClientRegisterMessage,
   WSMessage,
 } from "./types";
 
@@ -29,6 +30,7 @@ export class RelayState {
   private readonly playerOrigins = new Map<string, Set<RelayClient>>();
   private readonly serverNames = new Map<RelayClient, string>();
   private readonly presenceSubscriptions = new Map<RelayClient, Set<string>>();
+  private readonly webClients = new Set<RelayClient>();
   private dirty = false;
 
   constructor(
@@ -91,11 +93,22 @@ export class RelayState {
     }
     this.serverNames.delete(client);
     this.presenceSubscriptions.delete(client);
+    this.webClients.delete(client);
   }
 
   registerServer(client: RelayClient, data: ServerRegisterMessage): void {
     const shortName = data.shortName?.trim();
     this.serverNames.set(client, shortName || client.remoteAddress || "unknown");
+  }
+
+  registerClient(client: RelayClient, data: ClientRegisterMessage): void {
+    if (data.type === "web") this.webClients.add(client);
+  }
+
+  registerLegacyServer(client: RelayClient): void {
+    if (!this.webClients.has(client) && !this.serverNames.has(client)) {
+      this.serverNames.set(client, client.remoteAddress || "unknown");
+    }
   }
 
   serverPresence(channel: string): RelayServerPresence[] {
