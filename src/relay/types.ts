@@ -50,6 +50,7 @@ export interface ServerPresenceSubscribeMessage {
 export interface RelayServerPresence {
   name: string;
   playerCount: number;
+  players: string[];
 }
 
 export interface ServerPresenceMessage {

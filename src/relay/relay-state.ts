@@ -107,21 +107,21 @@ export class RelayState {
 
   registerLegacyServer(client: RelayClient): void {
     if (!this.webClients.has(client) && !this.serverNames.has(client)) {
-      this.serverNames.set(client, client.remoteAddress || "unknown");
+      this.serverNames.set(client, "Legacy Version");
     }
   }
 
   serverPresence(channel: string): RelayServerPresence[] {
     const channelName = normalizeChannel(channel);
     return [...this.serverNames.entries()]
-      .map(([client, name]) => ({
-        name,
-        playerCount: [...this.players.values()].filter((player) =>
+      .map(([client, name]) => {
+        const players = [...this.players.values()].filter((player) =>
           player.online
           && player.channels.includes(channelName)
           && this.playerOrigins.get(player._id)?.has(client),
-        ).length,
-      }))
+        ).map((player) => player.name).sort((left, right) => left.localeCompare(right, undefined, { sensitivity: "base" }));
+        return { name, playerCount: players.length, players };
+      })
       .sort((left, right) => left.name.localeCompare(right.name, undefined, { sensitivity: "base" }));
   }
 
