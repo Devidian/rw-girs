@@ -102,7 +102,10 @@ export class RelayState {
   }
 
   registerClient(client: RelayClient, data: ClientRegisterMessage): void {
-    if (data.type === "web") this.webClients.add(client);
+    if (data.type === "web") {
+      this.webClients.add(client);
+      this.serverNames.delete(client);
+    }
   }
 
   registerLegacyServer(client: RelayClient): void {

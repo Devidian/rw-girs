@@ -153,6 +153,7 @@ export class RelayServer {
           break;
         case GIEvent.ClientRegister:
           this.state.registerClient(client, message.payload as ClientRegisterMessage);
+          this.broadcastServerPresence();
           break;
         case GIEvent.ServerPresenceSubscribe: {
           const payload = message.payload as ServerPresenceSubscribeMessage;
