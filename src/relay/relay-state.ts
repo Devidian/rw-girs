@@ -116,15 +116,24 @@ export class RelayState {
 
   serverPresence(channel: string): RelayServerPresence[] {
     const channelName = normalizeChannel(channel);
-    const presence = [...this.serverNames.entries()]
-      .map(([client, name]) => {
+    const presenceByName = new Map<string, RelayServerPresence>();
+    for (const [client, name] of this.serverNames.entries()) {
         const players = [...this.players.values()].filter((player) =>
           player.online
           && player.channels.includes(channelName)
           && this.playerOrigins.get(player._id)?.has(client),
         ).map((player) => player.name).sort((left, right) => left.localeCompare(right, undefined, { sensitivity: "base" }));
-        return { name, playerCount: players.length, players };
-      })
+        const existing = presenceByName.get(name);
+        if (existing) {
+          existing.players.push(...players);
+          existing.playerCount = existing.players.length;
+        } else {
+          presenceByName.set(name, { name, playerCount: players.length, players });
+        }
+    }
+    const presence = [...presenceByName.values()]
+      .map((entry) => ({ ...entry, players: [...new Set(entry.players)].sort((left, right) => left.localeCompare(right, undefined, { sensitivity: "base" })) }))
+      .map((entry) => ({ ...entry, playerCount: entry.players.length }))
       .sort((left, right) => left.name.localeCompare(right.name, undefined, { sensitivity: "base" }));
     const webPlayers = [...this.players.values()]
       .filter((player) => player.online && player.channels.includes(channelName)
