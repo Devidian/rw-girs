@@ -14,8 +14,10 @@ import {
   PlayerMessage,
   PlayerOverrideChangeMessage,
   PlayerRegisterMessage,
+  RelayServerPresence,
   PlayerUnregisterMessage,
   RelayClient,
+  ServerRegisterMessage,
   WSMessage,
 } from "./types";
 
@@ -25,6 +27,8 @@ export class RelayState {
   private readonly players = new Map<string, GlobalIntercomPlayer>();
   private readonly channels = new Map<string, GlobalIntercomChannel>();
   private readonly playerOrigins = new Map<string, Set<RelayClient>>();
+  private readonly serverNames = new Map<RelayClient, string>();
+  private readonly presenceSubscriptions = new Map<RelayClient, Set<string>>();
   private dirty = false;
 
   constructor(
@@ -85,6 +89,42 @@ export class RelayState {
         this.playerOrigins.delete(playerId);
       }
     }
+    this.serverNames.delete(client);
+    this.presenceSubscriptions.delete(client);
+  }
+
+  registerServer(client: RelayClient, data: ServerRegisterMessage): void {
+    const shortName = data.shortName?.trim();
+    this.serverNames.set(client, shortName || client.remoteAddress || "unknown");
+  }
+
+  serverPresence(channel: string): RelayServerPresence[] {
+    const channelName = normalizeChannel(channel);
+    return [...this.serverNames.entries()]
+      .map(([client, name]) => ({
+        name,
+        playerCount: [...this.players.values()].filter((player) =>
+          player.online
+          && player.channels.includes(channelName)
+          && this.playerOrigins.get(player._id)?.has(client),
+        ).length,
+      }))
+      .sort((left, right) => left.name.localeCompare(right.name, undefined, { sensitivity: "base" }));
+  }
+
+  subscribeServerPresence(client: RelayClient, channel: string): string {
+    const channelName = normalizeChannel(channel);
+    const subscriptions = this.presenceSubscriptions.get(client) ?? new Set<string>();
+    subscriptions.add(channelName);
+    this.presenceSubscriptions.set(client, subscriptions);
+    return channelName;
+  }
+
+  serverPresenceSubscribers(channel: string): RelayClient[] {
+    const channelName = normalizeChannel(channel);
+    return [...this.presenceSubscriptions.entries()]
+      .filter(([, subscriptions]) => subscriptions.has(channelName))
+      .map(([client]) => client);
   }
 
   playerOnline(client: RelayClient, data: PlayerMessage): WSMessage<GlobalIntercomPlayer> {

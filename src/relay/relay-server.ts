@@ -17,6 +17,9 @@ import {
   PlayerRegisterMessage,
   PlayerUnregisterMessage,
   RelayClient,
+  ServerPresenceSubscribeMessage,
+  ServerRegisterMessage,
+  ServerPresenceMessage,
   WSMessage,
 } from "./types";
 
@@ -63,10 +66,12 @@ export class RelayServer {
 
   private onConnection(client: RelayClient, request: IncomingMessage): void {
     client.relayId = this.connectionIndex++;
+    client.remoteAddress = request.socket.remoteAddress ?? "unknown";
     logger.log(`Client connected ${client.relayId} from ${request.socket.remoteAddress ?? "unknown"}`);
     client.on("message", (raw) => this.onMessage(client, rawDataToString(raw)));
     client.on("close", () => {
       this.state.removeOrigin(client);
+      this.broadcastServerPresence();
       logger.log(`Client disconnected ${client.relayId}`);
     });
     client.on("error", (error) => logger.error(`Client error ${client.relayId}`, error));
@@ -99,6 +104,7 @@ export class RelayServer {
           break;
         case GIEvent.PlayerOnline:
           this.send(client, this.state.playerOnline(client, message.payload as PlayerMessage));
+          this.broadcastServerPresence();
           this.queueStateSave(message.event);
           break;
         case GIEvent.PlayerOffline: {
@@ -106,19 +112,23 @@ export class RelayServer {
           if (response) {
             this.send(client, response);
           }
+          this.broadcastServerPresence();
           this.queueStateSave(message.event);
           break;
         }
         case GIEvent.PlayerJoinChannel:
           this.sendAll(client, this.state.joinChannel(message.payload as PlayerJoinChannelMessage));
+          this.broadcastServerPresence();
           this.queueStateSave(message.event);
           break;
         case GIEvent.PlayerLeaveChannel:
           this.sendAll(client, this.state.leaveChannel(message.payload as PlayerLeaveChannelMessage));
+          this.broadcastServerPresence();
           this.queueStateSave(message.event);
           break;
         case GIEvent.PlayerCreateChannel:
           this.sendAll(client, this.state.createChannel(message.payload as PlayerCreateChannelMessage));
+          this.broadcastServerPresence();
           this.queueStateSave(message.event);
           break;
         case GIEvent.PlayerCloseChannel: {
@@ -127,6 +137,7 @@ export class RelayServer {
           for (const notification of result.notifications) {
             this.send(notification.client, notification.message);
           }
+          this.broadcastServerPresence();
           this.queueStateSave(message.event);
           break;
         }
@@ -134,6 +145,15 @@ export class RelayServer {
           this.send(client, this.state.overrideChange(message.payload as PlayerOverrideChangeMessage));
           this.queueStateSave(message.event);
           break;
+        case GIEvent.ServerRegister:
+          this.state.registerServer(client, message.payload as ServerRegisterMessage);
+          this.broadcastServerPresence();
+          break;
+        case GIEvent.ServerPresenceSubscribe: {
+          const payload = message.payload as ServerPresenceSubscribeMessage;
+          this.sendServerPresence(client, this.state.subscribeServerPresence(client, payload.channel));
+          break;
+        }
         default:
           logger.warn(`Unknown relay event ${message.event} from ${client.relayId}`);
           break;
@@ -191,6 +211,24 @@ export class RelayServer {
     for (const client of this.state.relayClients()) {
       this.send(client, message);
     }
+  }
+
+  private broadcastServerPresence(): void {
+    const channel = "global";
+    const message: WSMessage<ServerPresenceMessage> = {
+      event: GIEvent.ServerPresence,
+      payload: { channel, servers: this.state.serverPresence(channel) },
+    };
+    for (const client of this.state.serverPresenceSubscribers(channel)) {
+      this.send(client, message);
+    }
+  }
+
+  private sendServerPresence(client: RelayClient, channel: string): void {
+    this.send(client, {
+      event: GIEvent.ServerPresence,
+      payload: { channel, servers: this.state.serverPresence(channel) } satisfies ServerPresenceMessage,
+    });
   }
 
   private queueStateSave(reason: string): void {

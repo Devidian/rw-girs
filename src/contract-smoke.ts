@@ -78,6 +78,21 @@ async function main(): Promise<void> {
   await expectEvent(clientB, GIEvent.PlayerJoinChannel);
   await expectSuccess(clientB, "RELAY_JOIN_SUCCESS");
 
+  clientA.send(GIEvent.ServerRegister, { shortName: "SmokeA" });
+  clientB.send(GIEvent.ServerPresenceSubscribe, { channel: "global" });
+  const initialPresence = await expectEvent(clientB, GIEvent.ServerPresence);
+  assert(JSON.stringify(initialPresence.payload).includes('"name":"SmokeA"'), "server presence missed registered name");
+  assert(JSON.stringify(initialPresence.payload).includes('"playerCount":1'), "server presence missed channel player count");
+
+  clientA.send(GIEvent.PlayerOffline, player("100", "Alice"));
+  await expectEvent(clientA, GIEvent.PlayerOffline);
+  const updatedPresence = await expectEvent(clientB, GIEvent.ServerPresence);
+  assert(JSON.stringify(updatedPresence.payload).includes('"playerCount":0'), "server presence did not update after player leave");
+
+  clientA.send(GIEvent.PlayerOnline, player("100", "Alice"));
+  await expectEvent(clientA, GIEvent.PlayerOnline);
+  await expectEvent(clientB, GIEvent.ServerPresence);
+
   clientA.send(GIEvent.BroadcastMessage, {
     createdOn: new Date().toISOString(),
     chatVersion: 2,

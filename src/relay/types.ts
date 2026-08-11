@@ -15,6 +15,9 @@ export enum GIEvent {
   PlayerResponseError = "playerResponseError",
   PlayerResponseSuccess = "playerResponseSuccess",
   PlayerResponseInfo = "playerResponseInfo",
+  ServerRegister = "serverRegister",
+  ServerPresence = "serverPresence",
+  ServerPresenceSubscribe = "serverPresenceSubscribe",
 }
 
 export interface WSMessage<T = unknown> {
@@ -29,6 +32,24 @@ export interface WSMessage<T = unknown> {
 export interface PlayerMessage {
   playerUID: string;
   playerName: string;
+}
+
+export interface ServerRegisterMessage {
+  shortName?: string;
+}
+
+export interface ServerPresenceSubscribeMessage {
+  channel: string;
+}
+
+export interface RelayServerPresence {
+  name: string;
+  playerCount: number;
+}
+
+export interface ServerPresenceMessage {
+  channel: string;
+  servers: RelayServerPresence[];
 }
 
 export interface PlayerRegisterMessage extends PlayerMessage {
@@ -101,4 +122,5 @@ export interface PersistedRelayState {
 
 export interface RelayClient extends WebSocket {
   relayId?: number;
+  remoteAddress?: string;
 }

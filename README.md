@@ -51,6 +51,11 @@ Legacy aliases are accepted where useful: `APP_WSS_PORT`, `PORT`, `SALT`, and
 - Restart recovery restores saved players and channels, marks players offline,
   and waits for plugin clients to reconnect and send `playerOnline`.
 - The relay preserves the current Java plugin event names and payload fields.
+- Game plugins may register a compact server name through `serverRegister`.
+  Browser clients can request `serverPresence` for a relay channel and receive
+  the registered servers with their live channel player counts. A blank server
+  name falls back to the connection IP; these additive events are ignored by
+  older clients.
 
 ## Commands
 
