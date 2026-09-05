@@ -20,6 +20,6 @@ Removing the additive event restores prior protocol behavior without migration.
 
 ## Validation
 
-- [ ] Add typed registration and presence payloads.
-- [ ] Cover initial, membership, and disconnect updates in the contract smoke.
-- [ ] Build, test, and publish an RC Docker image.
+- [x] Add typed registration and presence payloads.
+- [x] Cover initial, membership, and disconnect updates in the contract smoke.
+- [x] Build, test, and publish an RC Docker image.
