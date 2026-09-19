@@ -27,6 +27,7 @@ const DEFAULT_CHANNELS = ["global", "global-dev", "global-de", "global-en", "glo
 export class RelayState {
   private readonly players = new Map<string, GlobalIntercomPlayer>();
   private readonly channels = new Map<string, GlobalIntercomChannel>();
+  private readonly sessionChannelIds = new Set<string>();
   private readonly playerOrigins = new Map<string, Set<RelayClient>>();
   private readonly serverNames = new Map<RelayClient, string>();
   private readonly presenceSubscriptions = new Map<RelayClient, Set<string>>();
@@ -74,7 +75,9 @@ export class RelayState {
       players: [...this.players.values()]
         .filter((player) => player.saveSettings)
         .map((player) => ({ ...player, online: false, channels: [...player.channels] })),
-      channels: [...this.channels.values()].map((channel) => ({ ...channel })),
+      channels: [...this.channels.values()]
+        .filter((channel) => !this.sessionChannelIds.has(channel._id))
+        .map((channel) => ({ ...channel })),
     };
 
     await mkdir(dirname(this.persistencePath), { recursive: true });
@@ -215,10 +218,8 @@ export class RelayState {
   joinChannel(data: PlayerJoinChannelMessage): WSMessage<GlobalIntercomPlayer>[] {
     const player = this.getPlayer(data);
     const channelName = normalizeChannel(data.channel);
-    const channel = this.channels.get(channelName);
-    if (!channel) {
-      return [this.error(player, channelName, "RELAY_CHANNEL_UNKNOWN")];
-    }
+    const channel = this.channels.get(channelName) ?? this.createSessionChannel(channelName);
+    if (!channel) return [this.error(player, channelName, "RELAY_CHANNEL_UNKNOWN")];
     if (!this.channelPasswordMatches(channel, data.password)) {
       return [this.error(player, channelName, "RELAY_JOIN_NOACCESS")];
     }
@@ -399,6 +400,23 @@ export class RelayState {
         this.dirty = true;
       }
     }
+  }
+
+  private createSessionChannel(channelName: string): GlobalIntercomChannel | null {
+    // Game servers may change their default channel and players may join a
+    // channel directly. Those public channels must work immediately without a
+    // relay restart or an explicit owner-registration workflow.
+    if (!channelName || channelName.length > 64) return null;
+    const channel: GlobalIntercomChannel = {
+      _id: channelName,
+      description: "session channel",
+      secure: false,
+      password: null,
+      ownerId: null,
+    };
+    this.channels.set(channelName, channel);
+    this.sessionChannelIds.add(channelName);
+    return channel;
   }
 
   private getPlayer(data: PlayerMessage): GlobalIntercomPlayer {

@@ -38,6 +38,10 @@ Legacy aliases are accepted where useful: `APP_WSS_PORT`, `PORT`, `SALT`, and
 
 - Default channels are created on startup: `global`, `global-dev`, `global-de`,
   `global-en`, `global-ru`, and `global-fr`.
+- A first join to any non-empty channel up to 64 characters creates a public
+  session channel. This supports server-specific default channels and manual
+  in-game joins without relay configuration; session channels disappear on
+  relay restart unless created explicitly as persistent channels.
 - Player save state, saved channel memberships, and channels are persisted to
   JSON with atomic file replacement.
 - Chat messages are relayed only in memory and are never written to the
