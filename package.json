@@ -1,6 +1,6 @@
 {
   "name": "rw-girs",
-  "version": "0.2.0",
+  "version": "0.2.1-rc.1",
   "description": "Node Websocket Backend Server for RisingWorld Plugin GlobalIntercom",
   "main": "dist/main.js",
   "author": "Maik 'Devidian' Laschober",

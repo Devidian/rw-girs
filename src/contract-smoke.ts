@@ -78,11 +78,34 @@ async function main(): Promise<void> {
   await expectEvent(clientB, GIEvent.PlayerJoinChannel);
   await expectSuccess(clientB, "RELAY_JOIN_SUCCESS");
 
-  clientA.send(GIEvent.ServerRegister, { shortName: "SmokeA" });
+  // A browser channel and a game-server-selected default channel can be
+  // joined without pre-registering either channel at the relay.
+  clientA.send(GIEvent.PlayerJoinChannel, { ...player("100", "Alice"), channel: "web" });
+  await expectEvent(clientA, GIEvent.PlayerJoinChannel);
+  await expectSuccess(clientA, "RELAY_JOIN_SUCCESS");
+  clientB.send(GIEvent.PlayerJoinChannel, { ...player("200", "Bob"), channel: "web" });
+  await expectEvent(clientB, GIEvent.PlayerJoinChannel);
+  await expectSuccess(clientB, "RELAY_JOIN_SUCCESS");
+  clientA.send(GIEvent.BroadcastMessage, {
+    createdOn: new Date().toISOString(),
+    chatVersion: 2,
+    chatContent: "hello web channel",
+    chatChannel: "web",
+    playerName: "Alice",
+    playerUID: "100",
+    sourceName: "SmokeA",
+    sourceIP: "127.0.0.1",
+    sourceVersion: "test",
+  });
+  await expectEvent(clientA, GIEvent.BroadcastMessage);
+  await expectEvent(clientB, GIEvent.BroadcastMessage);
+
   clientB.send(GIEvent.ServerPresenceSubscribe, { channel: "global" });
-  const initialPresence = await expectEvent(clientB, GIEvent.ServerPresence);
-  assert(JSON.stringify(initialPresence.payload).includes('"name":"SmokeA"'), "server presence missed registered name");
-  assert(JSON.stringify(initialPresence.payload).includes('"playerCount":1'), "server presence missed channel player count");
+  await expectEvent(clientB, GIEvent.ServerPresence);
+  clientA.send(GIEvent.ServerRegister, { shortName: "SmokeA" });
+  const registeredPresence = await expectEvent(clientB, GIEvent.ServerPresence);
+  assert(JSON.stringify(registeredPresence.payload).includes('"name":"SmokeA"'), "server presence missed registered name");
+  assert(JSON.stringify(registeredPresence.payload).includes('"playerCount":1'), "server presence missed channel player count");
 
   clientA.send(GIEvent.PlayerOffline, player("100", "Alice"));
   await expectEvent(clientA, GIEvent.PlayerOffline);
@@ -122,6 +145,8 @@ async function main(): Promise<void> {
 
   const persisted = await readFile(process.env.GIRS_PERSISTENCE_PATH, "utf8");
   assert(persisted.includes("\"smoke\""), "created channel was not persisted");
+  const persistedState = JSON.parse(persisted) as { channels?: Array<{ _id?: string }> };
+  assert(!persistedState.channels?.some((channel) => channel._id === "web"), "session channels must not be persisted");
   assert(!persisted.includes("hello from smoke"), "chat content must not be persisted");
 
   const restarted = new RelayServer();
