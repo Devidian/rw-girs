@@ -34,6 +34,8 @@ Environment variables:
 Legacy aliases are accepted where useful: `APP_WSS_PORT`, `PORT`, `SALT`, and
 `APP_LOGLEVEL`, `APP_TITLE`.
 
+For player erasure, set `INTERCOM_ERASURE_KEYS_JSON` to a JSON object mapping operator-chosen server IDs to independent random 64-character lowercase hexadecimal keys. Set `INTERCOM_ERASURE_SERVER_ID` and `INTERCOM_ERASURE_KEY` in the corresponding game process. The relay waits until the player has no remaining origin, clears structured player and owner links, and acknowledges after saving. Existing shared channels and descriptions are retained.
+
 ## Behavior
 
 - Default channels are created on startup: `global`, `global-dev`, `global-de`,

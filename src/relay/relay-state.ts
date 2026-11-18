@@ -80,11 +80,16 @@ export class RelayState {
         .map((channel) => ({ ...channel })),
     };
 
-    await mkdir(dirname(this.persistencePath), { recursive: true });
-    const tmpPath = `${this.persistencePath}.${process.pid}.tmp`;
-    await writeFile(tmpPath, `${JSON.stringify(state, null, 2)}\n`, "utf8");
-    await rename(tmpPath, this.persistencePath);
     this.dirty = false;
+    try {
+      await mkdir(dirname(this.persistencePath), { recursive: true });
+      const tmpPath = `${this.persistencePath}.${process.pid}.tmp`;
+      await writeFile(tmpPath, `${JSON.stringify(state, null, 2)}\n`, "utf8");
+      await rename(tmpPath, this.persistencePath);
+    } catch (error) {
+      this.dirty = true;
+      throw error;
+    }
   }
 
   removeOrigin(client: RelayClient): void {
@@ -213,6 +218,18 @@ export class RelayState {
     this.players.delete(player._id);
     this.dirty = true;
     return { event: GIEvent.PlayerResponseSuccess, payload: player, successCode: "RELAY_SUCCESS_UNREGISTER" };
+  }
+
+  /** Retains shared channels and their descriptions while removing the player's owner link. */
+  erasePlayer(uid: string): boolean {
+    if (this.playerOrigins.get(uid)?.size) return false;
+    this.players.delete(uid);
+    this.playerOrigins.delete(uid);
+    for (const channel of this.channels.values()) {
+      if (channel.ownerId === uid) channel.ownerId = null;
+    }
+    this.dirty = true;
+    return true;
   }
 
   joinChannel(data: PlayerJoinChannelMessage): WSMessage<GlobalIntercomPlayer>[] {
