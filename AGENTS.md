@@ -28,3 +28,7 @@ Does not own:
 - Run the repository build script for build-impacting changes.
 - Run targeted runtime or contract checks for WebSocket behavior changes.
 - Review plugin compatibility when relay payloads or channel semantics change.
+
+## CodeMap
+
+For unfamiliar modules and cross-repository impact, start at [the local CodeMap](.codemap/README.md) and use the [CodeMap skill](.agents/skills/codemap/SKILL.md). Verify relevant source and update and validate affected entries when indexed information changes.
