@@ -1,4 +1,5 @@
 import { IncomingMessage } from "node:http";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import type WebSocket from "ws";
 import { WebSocketServer } from "ws";
 import { logger } from "../utils/logger";
@@ -92,6 +93,12 @@ export class RelayServer {
 
     try {
       switch (message.event) {
+        case "erasureProbe":
+          this.erasePlayer(client, message.payload, true);
+          break;
+        case "erasePlayer":
+          this.erasePlayer(client, message.payload, false);
+          break;
         case GIEvent.BroadcastMessage:
           this.handleBroadcast(client, message.payload as ChatMessage);
           break;
@@ -241,6 +248,32 @@ export class RelayServer {
     this.saveQueue = this.saveQueue
       .then(() => this.state.save())
       .catch((error) => logger.error(`Relay save failed after ${reason}`, error));
+  }
+
+  private erasePlayer(client: RelayClient, payload: unknown, probe: boolean): void {
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) return;
+    const { serverId, uid, requestId, issuedAt, signature } = payload as Record<string, unknown>;
+    if (typeof serverId !== "string" || !/^[a-zA-Z0-9._-]{1,80}$/.test(serverId)
+        || typeof uid !== "string" || !/^[a-zA-Z0-9_-]{1,128}$/.test(uid)
+        || typeof requestId !== "string" || !/^[a-f0-9-]{36}$/.test(requestId)
+        || typeof signature !== "string" || !/^[a-f0-9]{64}$/.test(signature)
+        || typeof issuedAt !== "number" || !Number.isSafeInteger(issuedAt)
+        || Math.abs(Date.now() - issuedAt) > 30_000) return;
+    const keys: Record<string, unknown> = JSON.parse(process.env.INTERCOM_ERASURE_KEYS_JSON ?? "{}");
+    const key = Object.prototype.hasOwnProperty.call(keys, serverId) ? keys[serverId] : undefined;
+    if (typeof key !== "string" || !/^[a-f0-9]{64}$/.test(key)) return;
+    const signed = [probe ? "intercom-erasure-probe" : "intercom-player-erasure", serverId, requestId, uid, issuedAt].join("\n");
+    const expected = createHmac("sha256", key).update(signed).digest();
+    if (!timingSafeEqual(expected, Buffer.from(signature, "hex"))) return;
+    if (probe) {
+      this.send(client, { event: "erasureAvailable", payload: { requestId } });
+      return;
+    }
+    this.saveQueue = this.saveQueue.then(async () => {
+      if (!this.state.erasePlayer(uid)) return;
+      await this.state.save(true);
+      this.send(client, { event: "playerErased", payload: { requestId } });
+    }).catch(() => logger.error("Relay could not persist a player erasure"));
   }
 }
 

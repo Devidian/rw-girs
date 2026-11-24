@@ -1,4 +1,5 @@
 import { mkdtemp, readFile } from "node:fs/promises";
+import { createHmac, randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import WebSocket from "ws";
@@ -21,7 +22,7 @@ class TestClient {
     });
   }
 
-  send(event: GIEvent, payload: unknown): void {
+  send(event: string, payload: unknown): void {
     this.socket.send(JSON.stringify({ event, payload }));
   }
 
@@ -58,6 +59,8 @@ async function main(): Promise<void> {
   process.env.GIRS_PERSISTENCE_PATH = join(dataDir, "relay-state.json");
   process.env.GIRS_SAVE_INTERVAL_MS = "100000";
   process.env.GIRS_LOG_LEVEL = "debug";
+  const erasureKey = "a".repeat(64);
+  process.env.INTERCOM_ERASURE_KEYS_JSON = JSON.stringify({ smoke: erasureKey });
 
   const { RelayServer } = await import("./relay/relay-server");
   const server = new RelayServer();
@@ -155,6 +158,21 @@ async function main(): Promise<void> {
   clientC.send(GIEvent.PlayerOnline, player("100", "Alice"));
   const online = await clientC.next();
   assert(JSON.stringify(online.payload).includes("smoke"), "persisted player channel was not restored");
+  clientC.send(GIEvent.PlayerOffline, player("100", "Alice"));
+  await expectEvent(clientC, GIEvent.PlayerOffline);
+  const requestId = randomUUID();
+  const issuedAt = Date.now();
+  const signature = createHmac("sha256", erasureKey)
+    .update(["intercom-player-erasure", "smoke", requestId, "100", issuedAt].join("\n")).digest("hex");
+  clientC.send("erasePlayer", { serverId: "smoke", uid: "100", requestId, issuedAt, signature });
+  assert((await clientC.next()).event === "playerErased", "erasure was not acknowledged");
+  const afterErasure = JSON.parse(await readFile(process.env.GIRS_PERSISTENCE_PATH, "utf8")) as {
+    players: Array<{ _id: string }>;
+    channels: Array<{ _id: string; ownerId: string | null }>;
+  };
+  assert(!afterErasure.players.some((entry) => entry._id === "100"), "erased player was retained");
+  assert(afterErasure.channels.some((channel) => channel._id === "smoke" && channel.ownerId === null),
+    "shared channel should survive without the erased owner");
   clientC.close();
   await restarted.stop();
 
