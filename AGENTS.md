@@ -20,7 +20,7 @@ Does not own:
 - Use Yarn as configured by this repository.
 - Preserve the TypeScript build and runtime scripts unless explicitly changed.
 - Treat WebSocket payload changes as compatibility-sensitive contracts.
-- Follow `.codex/agents.toml` for local agent roles, task classes, context loading, and escalation.
+- Follow `.codex/agents/*.toml` for local agent roles, task classes, context loading, and escalation.
 - Follow `docs/policies/repository-policy.md` for reusable governance rules.
 - Keep `README.md` when added and `PLANS.md` aligned with setup, workflow, or deployment changes.
 
