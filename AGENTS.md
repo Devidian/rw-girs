@@ -8,7 +8,7 @@ It is a standalone TypeScript service and must not depend on workspace-root orch
 ## Ownership
 Owns:
 - WebSocket relay/server behavior
-- relay-side Discord/MongoDB integration where configured
+- relay-side Discord integration and JSON-backed relay state
 - TypeScript build and runtime configuration for the relay service
 
 Does not own:
