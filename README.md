@@ -46,6 +46,8 @@ For player erasure, set `INTERCOM_ERASURE_KEYS_JSON` to a JSON object mapping op
   relay restart unless created explicitly as persistent channels.
 - Player save state, saved channel memberships, and channels are persisted to
   JSON with atomic file replacement.
+- Socket closure removes that connection's player origins. A player remains
+  online while another origin is connected, and saved memberships are retained.
 - Chat messages are relayed only in memory and are never written to the
   persistence file.
 - Optional Discord forwarding bridges configured relay channels and Discord
@@ -71,7 +73,7 @@ yarn test
 yarn start
 ```
 
-`yarn test` builds the TypeScript project and runs a local contract smoke test
+`yarn test` builds the TypeScript project, checks relay state cleanup, and runs a local contract smoke test
 with two simulated Global Intercom clients, channel joins, broadcast relay,
 custom channel persistence, restart recovery, and a check that chat text is not
 persisted.

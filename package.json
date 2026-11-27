@@ -8,7 +8,7 @@
   "packageManager": "yarn@4.15.0",
   "scripts": {
     "build": "rm -rf dist && tsc --build tsconfig.build.json",
-    "test": "yarn build && node dist/contract-smoke.js",
+    "test": "yarn build && node tests/relay-state.test.cjs && node dist/contract-smoke.js",
     "start": "tsc;node dist/main",
     "start:dev": "npx node --env-file=.env.app.local -r ts-node/register src/main.ts"
   },

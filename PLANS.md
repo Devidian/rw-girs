@@ -1,5 +1,8 @@
 # PLANS.md
 
+- [x] Reconcile abrupt socket closures with player origins and persistent state.
+- [ ] Verify close and reconnect presence with the Global Intercom client in an isolated runtime.
+
 Planning is stored in repository-local docs.
 
 - Active implementation tasks: [docs/active/](docs/active/)

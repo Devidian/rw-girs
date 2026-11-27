@@ -94,9 +94,12 @@ export class RelayState {
 
   removeOrigin(client: RelayClient): void {
     for (const [playerId, origins] of this.playerOrigins.entries()) {
-      origins.delete(client);
-      if (origins.size === 0) {
-        this.playerOrigins.delete(playerId);
+      if (!origins.has(client)) continue;
+      const player = this.players.get(playerId);
+      if (player) this.detachPlayerOrigin(player, client);
+      else {
+        origins.delete(client);
+        if (origins.size === 0) this.playerOrigins.delete(playerId);
       }
     }
     this.serverNames.delete(client);
@@ -181,6 +184,11 @@ export class RelayState {
       return null;
     }
 
+    this.detachPlayerOrigin(player, client);
+    return { event: GIEvent.PlayerOffline, payload: player };
+  }
+
+  private detachPlayerOrigin(player: GlobalIntercomPlayer, client: RelayClient): void {
     const origins = this.playerOrigins.get(player._id);
     origins?.delete(client);
     if (origins && origins.size === 0) {
@@ -192,7 +200,6 @@ export class RelayState {
     } else {
       this.markPersistentPlayerDirty(player);
     }
-    return { event: GIEvent.PlayerOffline, payload: player };
   }
 
   registerPlayer(data: PlayerRegisterMessage): WSMessage<GlobalIntercomPlayer> {
